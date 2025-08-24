@@ -6,49 +6,169 @@ from tkcalendar import DateEntry  # ✅ calendar widget
 
 class AppointmentsPage(customtkinter.CTkFrame):
     def __init__(self, master):
-        super().__init__(master)
-
-        customtkinter.CTkLabel(self, text="📅 Manage Appointments", font=("Arial", 22, "bold")).pack(pady=20)
-
+        super().__init__(master, fg_color="#FFFFFF")
+        
         self.db = get_db()
         self.appointments = self.db.appointments
-
-        # Form
-        form_frame = customtkinter.CTkFrame(self)
-        form_frame.pack(pady=10, padx=20, fill="x")
-
+        
+        # Main container
+        main_container = customtkinter.CTkFrame(self, fg_color="transparent")
+        main_container.pack(fill="both", expand=True, padx=20, pady=20)
+        
+        # Header
+        header_frame = customtkinter.CTkFrame(main_container, fg_color="transparent")
+        header_frame.pack(fill="x", pady=(0, 20))
+        
+        customtkinter.CTkLabel(
+            header_frame, 
+            text="📅 Appointment Management", 
+            font=("Arial", 24, "bold"),
+            text_color="#2E4C80"
+        ).pack(side="left")
+        
+        # Two-column layout
+        content_frame = customtkinter.CTkFrame(main_container, fg_color="transparent")
+        content_frame.pack(fill="both", expand=True)
+        
+        # Left column - Form
+        form_container = customtkinter.CTkFrame(content_frame, width=400, fg_color="#F8FAFC", corner_radius=12)
+        form_container.pack(side="left", fill="y", padx=(0, 20))
+        form_container.pack_propagate(False)
+        
+        customtkinter.CTkLabel(
+            form_container, 
+            text="Schedule New Appointment", 
+            font=("Arial", 18, "bold"),
+            text_color="#2E4C80"
+        ).pack(pady=20)
+        
+        # Form frame
+        form_frame = customtkinter.CTkFrame(form_container, fg_color="transparent")
+        form_frame.pack(pady=10, padx=20, fill="both", expand=True)
+        
         # Patient
-        customtkinter.CTkLabel(form_frame, text="Patient Name:").grid(row=0, column=0, padx=10, pady=5, sticky="w")
-        self.patient_entry = customtkinter.CTkEntry(form_frame, width=200)
-        self.patient_entry.grid(row=0, column=1, pady=5)
+        customtkinter.CTkLabel(
+            form_frame, 
+            text="Patient Name:",
+            font=("Arial", 14),
+            text_color="#374151"
+        ).grid(row=0, column=0, padx=10, pady=10, sticky="w")
+        
+        self.patient_entry = customtkinter.CTkEntry(
+            form_frame, 
+            width=200,
+            height=40,
+            corner_radius=8,
+            border_color="#D1D5DB",
+            fg_color="#FFFFFF",
+            text_color="#1F2937"
+        )
+        self.patient_entry.grid(row=0, column=1, pady=10, padx=(0, 10))
 
         # Doctor
-        customtkinter.CTkLabel(form_frame, text="Doctor Name:").grid(row=1, column=0, padx=10, pady=5, sticky="w")
-        self.doctor_entry = customtkinter.CTkEntry(form_frame, width=200)
-        self.doctor_entry.grid(row=1, column=1, pady=5)
+        customtkinter.CTkLabel(
+            form_frame, 
+            text="Doctor Name:",
+            font=("Arial", 14),
+            text_color="#374151"
+        ).grid(row=1, column=0, padx=10, pady=10, sticky="w")
+        
+        self.doctor_entry = customtkinter.CTkEntry(
+            form_frame, 
+            width=200,
+            height=40,
+            corner_radius=8,
+            border_color="#D1D5DB",
+            fg_color="#FFFFFF",
+            text_color="#1F2937"
+        )
+        self.doctor_entry.grid(row=1, column=1, pady=10, padx=(0, 10))
 
-        # ✅ Smart Date Picker
-        customtkinter.CTkLabel(form_frame, text="Date:").grid(row=2, column=0, padx=10, pady=5, sticky="w")
-        self.date_entry = DateEntry(form_frame, width=18, background="darkblue", foreground="white", date_pattern="yyyy-mm-dd")
-        self.date_entry.grid(row=2, column=1, pady=5)
+        # Date Picker
+        customtkinter.CTkLabel(
+            form_frame, 
+            text="Date:",
+            font=("Arial", 14),
+            text_color="#374151"
+        ).grid(row=2, column=0, padx=10, pady=10, sticky="w")
+        
+        self.date_entry = DateEntry(
+            form_frame, 
+            width=18, 
+            background="#3B82F6", 
+            foreground="white", 
+            borderwidth=1,
+            date_pattern="yyyy-mm-dd"
+        )
+        self.date_entry.grid(row=2, column=1, pady=10, padx=(0, 10), sticky="w")
 
-        # ✅ Smart Time Picker (dropdowns)
-        customtkinter.CTkLabel(form_frame, text="Time:").grid(row=3, column=0, padx=10, pady=5, sticky="w")
-        self.hour_option = customtkinter.CTkOptionMenu(form_frame, values=[f"{h:02d}" for h in range(0, 24)], width=70)
-        self.hour_option.grid(row=3, column=1, sticky="w", padx=(0, 80), pady=5)
+        # Time Picker
+        customtkinter.CTkLabel(
+            form_frame, 
+            text="Time:",
+            font=("Arial", 14),
+            text_color="#374151"
+        ).grid(row=3, column=0, padx=10, pady=10, sticky="w")
+        
+        time_frame = customtkinter.CTkFrame(form_frame, fg_color="transparent")
+        time_frame.grid(row=3, column=1, pady=10, sticky="w")
+        
+        self.hour_option = customtkinter.CTkOptionMenu(
+            time_frame, 
+            values=[f"{h:02d}" for h in range(0, 24)], 
+            width=70,
+            height=35,
+            fg_color="#FFFFFF",
+            button_color="#3B82F6",
+            text_color="#1F2937",
+            dropdown_text_color="#1F2937",
+            dropdown_fg_color="#FFFFFF",
+            dropdown_hover_color="#EFF6FF"
+        )
+        self.hour_option.pack(side="left", padx=(0, 5))
         self.hour_option.set("09")  # default 9 AM
 
-        self.minute_option = customtkinter.CTkOptionMenu(form_frame, values=["00", "15", "30", "45"], width=70)
-        self.minute_option.grid(row=3, column=1, sticky="e", padx=(80, 0), pady=5)
+        self.minute_option = customtkinter.CTkOptionMenu(
+            time_frame, 
+            values=["00", "15", "30", "45"], 
+            width=70,
+            height=35,
+            fg_color="#FFFFFF",
+            button_color="#3B82F6",
+            text_color="#1F2937",
+            dropdown_text_color="#1F2937",
+            dropdown_fg_color="#FFFFFF",
+            dropdown_hover_color="#EFF6FF"
+        )
+        self.minute_option.pack(side="left", padx=(5, 0))
         self.minute_option.set("00")
+        
+        # Add Appointment Button
+        customtkinter.CTkButton(
+            form_frame, 
+            text="➕ Add Appointment", 
+            command=self.add_appointment,
+            height=45,
+            font=("Arial", 14, "bold"),
+            fg_color="#3B82F6",
+            hover_color="#2563EB",
+            text_color="white"
+        ).grid(row=4, column=0, columnspan=2, pady=20)
 
-        customtkinter.CTkButton(form_frame, text="➕ Add Appointment", command=self.add_appointment).grid(row=4, column=0, columnspan=2, pady=10)
-
-        # Appointment list
-        self.list_frame = customtkinter.CTkFrame(self)
-        self.list_frame.pack(fill="both", expand=True, padx=20, pady=20)
-
-        customtkinter.CTkLabel(self.list_frame, text="All Appointments", font=("Arial", 18, "bold")).pack(pady=10)
+        # Right column - Appointment list
+        list_container = customtkinter.CTkFrame(content_frame, fg_color="#F8FAFC", corner_radius=12)
+        list_container.pack(side="right", fill="both", expand=True)
+        
+        customtkinter.CTkLabel(
+            list_container, 
+            text="Scheduled Appointments", 
+            font=("Arial", 18, "bold"),
+            text_color="#2E4C80"
+        ).pack(pady=20)
+        
+        self.list_frame = customtkinter.CTkScrollableFrame(list_container, fg_color="transparent")
+        self.list_frame.pack(fill="both", expand=True, padx=20, pady=(0, 20))
+        
         self.load_appointments()
 
     def add_appointment(self):
@@ -75,13 +195,38 @@ class AppointmentsPage(customtkinter.CTkFrame):
 
     def load_appointments(self):
         for widget in self.list_frame.winfo_children():
-            if isinstance(widget, customtkinter.CTkLabel) and "All Appointments" in widget.cget("text"):
-                continue
             widget.destroy()
 
-        for appt in self.appointments.find().sort("date", 1):
+        appointments = list(self.appointments.find().sort("date", 1))
+        
+        if not appointments:
+            customtkinter.CTkLabel(
+                self.list_frame, 
+                text="No appointments scheduled", 
+                font=("Arial", 14),
+                text_color="#6B7280"
+            ).pack(pady=20)
+            return
+            
+        for appt in appointments:
+            appt_frame = customtkinter.CTkFrame(
+                self.list_frame, 
+                fg_color="#FFFFFF",
+                border_color="#E5E7EB",
+                border_width=1,
+                corner_radius=8
+            )
+            appt_frame.pack(fill="x", pady=5, padx=5)
+            
             text = f"👤 {appt['patient']} | 👨‍⚕️ {appt['doctor']} | 📅 {appt['date']} {appt['time']}"
-            customtkinter.CTkLabel(self.list_frame, text=text, anchor="w", font=("Arial", 14)).pack(pady=3, padx=10, anchor="w")
+            
+            customtkinter.CTkLabel(
+                appt_frame, 
+                text=text, 
+                anchor="w", 
+                font=("Arial", 14),
+                text_color="#374151"
+            ).pack(pady=10, padx=15, anchor="w")
 
     def clear_form(self):
         self.patient_entry.delete(0, "end")
