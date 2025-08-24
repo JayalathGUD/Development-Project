@@ -9,3 +9,7 @@ class BillingPage(customtkinter.CTkFrame):
         content = customtkinter.CTkTextbox(self, width=600, height=300)
         content.insert("end", "Billing Summary:\n\n- Patient: John Doe\n  Amount: $200\n\n- Patient: Jane Smith\n  Amount: $350")
         content.pack()
+
+
+
+        tddtyggh
