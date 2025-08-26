@@ -8,6 +8,8 @@ from pages.doctors import DoctorsPage
 from pages.billing import BillingPage
 from pages.new_user import NewUserPage
 from pages.settings import SettingsPage
+from pages.pharmacy import PharmacyPage
+
 
 username = sys.argv[1] if len(sys.argv) > 1 else "Admin"
 
@@ -120,9 +122,11 @@ nav_buttons = [
     ("📅 Appointments", AppointmentsPage),
     ("👨‍⚕️ Doctors", DoctorsPage),
     ("➕ New User", NewUserPage),
+    ("💊 Pharmacy", PharmacyPage),   # 👈 Added here
     ("💳 Billing", BillingPage),
     ("⚙️ Settings", SettingsPage),
 ]
+
 
 def load_page(page_cls):
     for widget in content.winfo_children():
