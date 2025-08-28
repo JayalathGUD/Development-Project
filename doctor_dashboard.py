@@ -1,39 +1,35 @@
 import customtkinter
 from datetime import datetime
-import sys
 from tkinter import ttk, messagebox
-from bson import ObjectId   # for MongoDB ObjectId
-from database.connection import get_db   # <-- use your DB connection
+from bson import ObjectId
+from database.connection import get_db
 
 # ------------------ Database ------------------ #
 db = get_db()
-appointments_col = db.appointments   # collection: appointments
+appointments_col = db.appointments
+medicines_col = db.medicines
+bills_col = db.bills   # new bills collection
 
 # ------------------ Main Window ------------------ #
-username = sys.argv[1] if len(sys.argv) > 1 else "Doctor"
-
 customtkinter.set_appearance_mode("light")
 customtkinter.set_default_color_theme("blue")
 
 app = customtkinter.CTk()
-app.geometry("1200x700")
+app.geometry("1400x850")
 app.title("Doctor Dashboard")
 app.resizable(True, True)
 
 # ------------------ Header ------------------ #
-header = customtkinter.CTkFrame(app, height=60, fg_color="#f1f1f1")
+header = customtkinter.CTkFrame(app, height=70, fg_color="#f1f1f1")
 header.pack(fill="x")
 
 customtkinter.CTkLabel(
-    header, text="👨‍⚕️ Doctor Dashboard", font=("Arial", 22, "bold")
+    header,
+    text="👨‍⚕️ Doctor Dashboard",
+    font=("Arial", 26, "bold")
 ).place(x=20, y=15)
 
-greeting = customtkinter.CTkLabel(
-    header, text=f"Welcome, Dr. {username} 👋", font=("Arial", 18)
-)
-greeting.place(relx=0.5, rely=0.5, anchor="center")
-
-clock_label = customtkinter.CTkLabel(header, text="", font=("Arial", 16))
+clock_label = customtkinter.CTkLabel(header, text="", font=("Arial", 18))
 clock_label.place(relx=0.98, y=20, anchor="ne")
 
 def update_clock():
@@ -43,116 +39,156 @@ def update_clock():
 
 update_clock()
 
-# ------------------ Sidebar ------------------ #
-sidebar = customtkinter.CTkFrame(app, width=200, fg_color="#e6e6e6")
-sidebar.pack(side="left", fill="y")
+# ------------------ Style for Tables ------------------ #
+style = ttk.Style()
+style.configure("Treeview.Heading", font=("Arial", 16, "bold"))
+style.configure("Treeview", font=("Arial", 15), rowheight=38)
 
-customtkinter.CTkLabel(sidebar, text="Menu", font=("Arial", 18, "bold")).pack(pady=20)
+# ------------------ Appointments Table ------------------ #
+customtkinter.CTkLabel(app, text="📅 My Appointments", font=("Arial", 22, "bold")).pack(pady=10)
 
-# ------------------ Pages ------------------ #
-def show_appointments(content):
-    """Doctor can view and update real appointments"""
-    for widget in content.winfo_children():
-        widget.destroy()
+appt_columns = ("id", "patient", "date", "time", "status")
+appt_tree = ttk.Treeview(app, columns=appt_columns, show="headings", height=10)
+appt_tree.pack(padx=20, pady=10, fill="x")
 
-    customtkinter.CTkLabel(content, text="📅 My Appointments", font=("Arial", 22, "bold")).pack(pady=20)
+for col in appt_columns:
+    appt_tree.heading(col, text=col.capitalize())
+    appt_tree.column(col, width=220, anchor="center")
 
-    # Treeview for appointments
-    columns = ("id", "patient", "date", "time", "status")
-    tree = ttk.Treeview(content, columns=columns, show="headings", height=12)
-    tree.pack(padx=20, pady=10, fill="both", expand=True)
+def load_appointments():
+    appt_tree.delete(*appt_tree.get_children())
+    for appt in appointments_col.find():
+        status = appt.get("status", "Pending")
+        appt_tree.insert(
+            "",
+            "end",
+            values=(
+                str(appt["_id"]),
+                appt.get("patient", ""),
+                appt.get("date", ""),
+                appt.get("time", ""),
+                status,
+            ),
+            tags=(status,)
+        )
+    appt_tree.tag_configure("Pending", background="#ffe6e6")  # red
+    appt_tree.tag_configure("Done", background="#e6ffe6")     # green
 
-    for col in columns:
-        tree.heading(col, text=col.capitalize())
-        tree.column(col, width=150)
+load_appointments()
 
-    # Load data from DB
-    def load_data():
-        tree.delete(*tree.get_children())
-        for appt in appointments_col.find():
-            tree.insert(
-                "", "end",
+# ------------------ Treatment Form ------------------ #
+def open_treatment_form(appt_id, patient_name):
+    win = customtkinter.CTkToplevel(app)
+    win.geometry("700x600")
+    win.title("Treatment Form")
+
+    customtkinter.CTkLabel(win, text=f"Treatment for {patient_name}", font=("Arial", 20, "bold")).pack(pady=10)
+
+    # Description
+    customtkinter.CTkLabel(win, text="📝 Treatment Description:").pack(anchor="w", padx=20)
+    desc_entry = customtkinter.CTkTextbox(win, width=600, height=100)
+    desc_entry.pack(padx=20, pady=10)
+
+    # Medicines table
+    customtkinter.CTkLabel(win, text="💊 Prescribe Medicines (double-click row to set qty)").pack(anchor="w", padx=20)
+
+    med_columns = ("id", "name", "stock", "price", "qty")
+    med_tree = ttk.Treeview(win, columns=med_columns, show="headings", height=8)
+    med_tree.pack(padx=20, pady=10, fill="x")
+
+    for col in med_columns:
+        med_tree.heading(col, text=col.capitalize())
+        med_tree.column(col, width=120, anchor="center")
+
+    prescribed = {}
+
+    def load_meds():
+        med_tree.delete(*med_tree.get_children())
+        for med in medicines_col.find():
+            med_tree.insert(
+                "",
+                "end",
                 values=(
-                    str(appt["_id"]),
-                    appt.get("patient", ""),
-                    appt.get("date", ""),
-                    appt.get("time", ""),
-                    appt.get("status", "Pending")
+                    str(med["_id"]),
+                    med.get("name", ""),
+                    med.get("stock", "N/A"),
+                    med.get("price", "N/A"),
+                    prescribed.get(str(med["_id"]), 0)
                 )
             )
 
-    load_data()
-
-    # Mark as Done button
-    def mark_done():
-        selected = tree.selection()
+    def on_double_click_med(event):
+        selected = med_tree.selection()
         if not selected:
-            messagebox.showwarning("No Selection", "Please select an appointment from the list.")
+            return
+        med_values = med_tree.item(selected[0], "values")
+        med_id, med_name = med_values[0], med_values[1]
+
+        qty_win = customtkinter.CTkInputDialog(
+            text=f"Enter quantity for {med_name}:", title="Set Quantity"
+        )
+        qty = qty_win.get_input()
+
+        if qty and qty.isdigit():
+            prescribed[med_id] = int(qty)
+            load_meds()
+
+    med_tree.bind("<Double-1>", on_double_click_med)
+    load_meds()
+
+    # Save Button
+    def save_treatment():
+        description = desc_entry.get("1.0", "end").strip()
+        if not description:
+            messagebox.showerror("Error", "Please enter a treatment description.")
             return
 
-        appt_values = tree.item(selected[0], "values")
-        appt_id = appt_values[0]   # first column = _id
+        # Prepare medicines list
+        meds_list = []
+        for med_id, qty in prescribed.items():
+            med = medicines_col.find_one({"_id": ObjectId(med_id)})
+            if med:
+                meds_list.append({
+                    "name": med["name"],
+                    "qty": qty,
+                    "price": med.get("price", 0),
+                    "subtotal": qty * float(med.get("price", 0))
+                })
 
-        try:
-            result = appointments_col.update_one(
-                {"_id": ObjectId(appt_id)}, {"$set": {"status": "Done"}}
-            )
-        except:
-            # if _id is stored as string, not ObjectId
-            result = appointments_col.update_one(
-                {"_id": appt_id}, {"$set": {"status": "Done"}}
-            )
+        # Save bill
+        bill = {
+            "appointment_id": appt_id,
+            "patient": patient_name,
+            "description": description,
+            "medicines": meds_list,
+            "created_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        }
+        bills_col.insert_one(bill)
 
-        if result.matched_count > 0:
-            messagebox.showinfo("Updated", f"Appointment {appt_id} marked as Done ✅")
-            load_data()
-        else:
-            messagebox.showerror("Not Found", f"No appointment found with ID {appt_id}")
+        # Update appointment
+        appointments_col.update_one({"_id": ObjectId(appt_id)}, {"$set": {"status": "Done"}})
 
-    customtkinter.CTkButton(content, text="✅ Mark as Done", command=mark_done).pack(pady=10)
+        messagebox.showinfo("Success", "Treatment saved & bill generated ✅")
+        win.destroy()
+        load_appointments()
 
+    customtkinter.CTkButton(win, text="💾 Save Treatment", command=save_treatment).pack(pady=20)
 
-def show_patients(content):
-    for widget in content.winfo_children():
-        widget.destroy()
-    customtkinter.CTkLabel(content, text="🧑 Patients Assigned", font=("Arial", 24)).pack(pady=50)
+# ------------------ Appointment Double Click ------------------ #
+def on_double_click_appt(event):
+    selected = appt_tree.selection()
+    if not selected:
+        return
+    appt_values = appt_tree.item(selected[0], "values")
+    appt_id, patient, status = appt_values[0], appt_values[1], appt_values[4]
 
+    if status == "Done":
+        messagebox.showinfo("Info", "This appointment is already marked as Done ✅")
+        return
 
-def show_prescription(content):
-    for widget in content.winfo_children():
-        widget.destroy()
-    customtkinter.CTkLabel(content, text="📝 Prescription Page", font=("Arial", 24)).pack(pady=50)
+    open_treatment_form(appt_id, patient)
 
+appt_tree.bind("<Double-1>", on_double_click_appt)
 
-def show_settings(content):
-    for widget in content.winfo_children():
-        widget.destroy()
-    customtkinter.CTkLabel(content, text="⚙️ Doctor Settings", font=("Arial", 24)).pack(pady=50)
-
-# ------------------ Sidebar Buttons ------------------ #
-menu_buttons = [
-    ("📅 My Appointments", show_appointments),
-    ("🧑 Patients", show_patients),
-    ("📝 Write Prescription", show_prescription),
-    ("⚙️ Settings", show_settings),
-]
-
-def load_page(page):
-    for widget in content.winfo_children():
-        widget.destroy()
-    page(content)
-
-for text, page in menu_buttons:
-    btn = customtkinter.CTkButton(sidebar, text=text, font=("Arial", 14), width=180, command=lambda p=page: load_page(p))
-    btn.pack(pady=6, padx=10)
-
-customtkinter.CTkButton(sidebar, text="🚪 Logout", fg_color="red", command=app.destroy, width=180).pack(side="bottom", pady=30)
-
-# ------------------ Main Content ------------------ #
-content = customtkinter.CTkFrame(app)
-content.pack(side="right", expand=True, fill="both")
-
-# Default page
-load_page(show_appointments)
-
+# ------------------ Run ------------------ #
 app.mainloop()

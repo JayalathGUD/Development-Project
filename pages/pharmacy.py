@@ -1,6 +1,12 @@
 # pages/pharmacy.py
 import customtkinter
 from tkinter import messagebox
+from bson import ObjectId
+from database.connection import get_db   # import your MongoDB connection
+
+# connect to DB
+db = get_db()
+medicines_col = db.medicines
 
 class PharmacyPage(customtkinter.CTkFrame):
     def __init__(self, master, **kwargs):
@@ -42,7 +48,6 @@ class PharmacyPage(customtkinter.CTkFrame):
         self.listbox = customtkinter.CTkTextbox(self, width=600, height=250)
         self.listbox.pack(pady=20)
 
-        self.medicines = {}  # simple dict storage (medicine_name → details)
         self.refresh_list()
 
     # ------------------- CRUD FUNCTIONS -------------------
@@ -55,43 +60,60 @@ class PharmacyPage(customtkinter.CTkFrame):
             messagebox.showwarning("Missing Data", "Please fill all fields.")
             return
 
-        if name in self.medicines:
+        # check if medicine exists
+        if medicines_col.find_one({"name": name}):
             messagebox.showerror("Error", "Medicine already exists!")
             return
 
-        self.medicines[name] = {"qty": qty, "price": price}
+        medicines_col.insert_one({
+            "name": name,
+            "qty": qty,
+            "price": price
+        })
         self.refresh_list()
         self.clear_fields()
-        messagebox.showinfo("Success", f"{name} added!")
+        messagebox.showinfo("Success", f"{name} added to database!")
 
     def update_medicine(self):
         name = self.name_entry.get().strip()
-        if name not in self.medicines:
-            messagebox.showerror("Error", "Medicine not found!")
+        if not name:
+            messagebox.showerror("Error", "Enter a medicine name to update.")
             return
 
-        self.medicines[name] = {
-            "qty": self.qty_entry.get().strip(),
-            "price": self.price_entry.get().strip()
-        }
-        self.refresh_list()
-        self.clear_fields()
-        messagebox.showinfo("Updated", f"{name} updated!")
+        result = medicines_col.update_one(
+            {"name": name},
+            {"$set": {
+                "qty": self.qty_entry.get().strip(),
+                "price": self.price_entry.get().strip()
+            }}
+        )
+
+        if result.matched_count == 0:
+            messagebox.showerror("Error", "Medicine not found in database!")
+        else:
+            self.refresh_list()
+            self.clear_fields()
+            messagebox.showinfo("Updated", f"{name} updated!")
 
     def delete_medicine(self):
         name = self.name_entry.get().strip()
-        if name in self.medicines:
-            del self.medicines[name]
+        if not name:
+            messagebox.showerror("Error", "Enter a medicine name to delete.")
+            return
+
+        result = medicines_col.delete_one({"name": name})
+
+        if result.deleted_count == 0:
+            messagebox.showerror("Error", "Medicine not found in database!")
+        else:
             self.refresh_list()
             self.clear_fields()
             messagebox.showinfo("Deleted", f"{name} removed!")
-        else:
-            messagebox.showerror("Error", "Medicine not found!")
 
     def refresh_list(self):
         self.listbox.delete("1.0", "end")
-        for name, details in self.medicines.items():
-            self.listbox.insert("end", f"{name} | Qty: {details['qty']} | Price: ${details['price']}\n")
+        for med in medicines_col.find():
+            self.listbox.insert("end", f"{med['name']} | Qty: {med['qty']} | Price: ${med['price']}\n")
 
     def clear_fields(self):
         self.name_entry.delete(0, "end")
