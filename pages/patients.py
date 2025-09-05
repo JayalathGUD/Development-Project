@@ -2,13 +2,10 @@ import customtkinter
 from database.connection import get_db
 from tkinter import messagebox, filedialog
 from bson.objectid import ObjectId
-import os
-import tkinter as tk
+import os, shutil, csv
 from tkinter import ttk
 from PIL import Image, ImageTk
-import shutil
-import csv
-from tkinter import simpledialog
+
 
 class PatientsPage(customtkinter.CTkFrame):
     def __init__(self, master, **kwargs):
@@ -57,8 +54,25 @@ class PatientsPage(customtkinter.CTkFrame):
         self.age_entry = customtkinter.CTkEntry(form_frame, placeholder_text="Age", width=300, font=self.default_font)
         self.age_entry.pack(pady=5)
 
+        self.gender_entry = customtkinter.CTkComboBox(form_frame, values=["Male", "Female", "Other"], width=300, font=self.default_font)
+        self.gender_entry.set("Male")
+        self.gender_entry.pack(pady=5)
+
+        self.dob_entry = customtkinter.CTkEntry(form_frame, placeholder_text="Date of Birth (YYYY-MM-DD)", width=300, font=self.default_font)
+        self.dob_entry.pack(pady=5)
+
+        self.email_entry = customtkinter.CTkEntry(form_frame, placeholder_text="Email", width=300, font=self.default_font)
+        self.email_entry.pack(pady=5)
+
         self.contact_entry = customtkinter.CTkEntry(form_frame, placeholder_text="Contact", width=300, font=self.default_font)
         self.contact_entry.pack(pady=5)
+
+        self.emergency_entry = customtkinter.CTkEntry(form_frame, placeholder_text="Emergency Contact", width=300, font=self.default_font)
+        self.emergency_entry.pack(pady=5)
+
+        self.blood_entry = customtkinter.CTkComboBox(form_frame, values=["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"], width=300, font=self.default_font)
+        self.blood_entry.set("O+")
+        self.blood_entry.pack(pady=5)
 
         self.address_entry = customtkinter.CTkEntry(form_frame, placeholder_text="Address", width=300, font=self.default_font)
         self.address_entry.pack(pady=5)
@@ -78,18 +92,12 @@ class PatientsPage(customtkinter.CTkFrame):
         style.configure("Treeview.Heading", font=("Arial", 16, "bold"))
         style.configure("Treeview", font=("Arial", 15), rowheight=30)
 
-        columns = ("name", "age", "contact", "address")
+        columns = ("name", "age", "gender", "dob", "contact", "email", "blood_group", "emergency_contact", "address")
         self.tree = ttk.Treeview(table_frame, columns=columns, show="headings", height=10)
 
-        self.tree.heading("name", text="Name")
-        self.tree.heading("age", text="Age")
-        self.tree.heading("contact", text="Contact")
-        self.tree.heading("address", text="Address")
-
-        self.tree.column("name", width=200)
-        self.tree.column("age", width=80)
-        self.tree.column("contact", width=180)
-        self.tree.column("address", width=300)
+        for col in columns:
+            self.tree.heading(col, text=col.replace("_", " ").title())
+            self.tree.column(col, width=140)
 
         scrollbar = ttk.Scrollbar(table_frame, orient="vertical", command=self.tree.yview)
         self.tree.configure(yscroll=scrollbar.set)
@@ -108,7 +116,17 @@ class PatientsPage(customtkinter.CTkFrame):
         for item in self.tree.get_children():
             self.tree.delete(item)
         for patient in patient_list:
-            self.tree.insert("", "end", iid=str(patient["_id"]), values=(patient["name"], patient["age"], patient["contact"], patient.get("address", "")))
+            self.tree.insert("", "end", iid=str(patient["_id"]), values=(
+                patient.get("name", ""),
+                patient.get("age", ""),
+                patient.get("gender", ""),
+                patient.get("dob", ""),
+                patient.get("contact", ""),
+                patient.get("email", ""),
+                patient.get("blood_group", ""),
+                patient.get("emergency_contact", ""),
+                patient.get("address", "")
+            ))
 
     def filter_patients(self, event=None):
         keyword = self.search_entry.get().strip().lower()
@@ -122,17 +140,21 @@ class PatientsPage(customtkinter.CTkFrame):
         name = self.name_entry.get()
         age = self.age_entry.get()
         contact = self.contact_entry.get()
-        address = self.address_entry.get()
 
         if not name or not age or not contact:
-            messagebox.showerror("Error", "All fields required")
+            messagebox.showerror("Error", "Name, Age, and Contact are required")
             return
 
         self.collection.insert_one({
             "name": name,
             "age": age,
+            "gender": self.gender_entry.get(),
+            "dob": self.dob_entry.get(),
             "contact": contact,
-            "address": address,
+            "email": self.email_entry.get(),
+            "emergency_contact": self.emergency_entry.get(),
+            "blood_group": self.blood_entry.get(),
+            "address": self.address_entry.get(),
             "photo_path": self.photo_path or ""
         })
 
@@ -148,7 +170,12 @@ class PatientsPage(customtkinter.CTkFrame):
         data = {
             "name": self.name_entry.get(),
             "age": self.age_entry.get(),
+            "gender": self.gender_entry.get(),
+            "dob": self.dob_entry.get(),
             "contact": self.contact_entry.get(),
+            "email": self.email_entry.get(),
+            "emergency_contact": self.emergency_entry.get(),
+            "blood_group": self.blood_entry.get(),
             "address": self.address_entry.get()
         }
 
@@ -173,7 +200,12 @@ class PatientsPage(customtkinter.CTkFrame):
     def clear_form(self):
         self.name_entry.delete(0, 'end')
         self.age_entry.delete(0, 'end')
+        self.gender_entry.set("Male")
+        self.dob_entry.delete(0, 'end')
         self.contact_entry.delete(0, 'end')
+        self.email_entry.delete(0, 'end')
+        self.emergency_entry.delete(0, 'end')
+        self.blood_entry.set("O+")
         self.address_entry.delete(0, 'end')
         self.selected_id = None
         self.photo_path = None
@@ -186,14 +218,16 @@ class PatientsPage(customtkinter.CTkFrame):
             patient = self.collection.find_one({"_id": ObjectId(patient_id)})
             if patient:
                 self.selected_id = str(patient["_id"])
-                self.name_entry.delete(0, 'end')
-                self.name_entry.insert(0, patient["name"])
-                self.age_entry.delete(0, 'end')
-                self.age_entry.insert(0, patient["age"])
-                self.contact_entry.delete(0, 'end')
-                self.contact_entry.insert(0, patient["contact"])
-                self.address_entry.delete(0, 'end')
-                self.address_entry.insert(0, patient.get("address", ""))
+                self.name_entry.delete(0, 'end'); self.name_entry.insert(0, patient.get("name", ""))
+                self.age_entry.delete(0, 'end'); self.age_entry.insert(0, patient.get("age", ""))
+                self.gender_entry.set(patient.get("gender", "Male"))
+                self.dob_entry.delete(0, 'end'); self.dob_entry.insert(0, patient.get("dob", ""))
+                self.contact_entry.delete(0, 'end'); self.contact_entry.insert(0, patient.get("contact", ""))
+                self.email_entry.delete(0, 'end'); self.email_entry.insert(0, patient.get("email", ""))
+                self.emergency_entry.delete(0, 'end'); self.emergency_entry.insert(0, patient.get("emergency_contact", ""))
+                self.blood_entry.set(patient.get("blood_group", "O+"))
+                self.address_entry.delete(0, 'end'); self.address_entry.insert(0, patient.get("address", ""))
+
                 self.photo_path = patient.get("photo_path", "")
                 if self.photo_path and os.path.exists(self.photo_path):
                     self.show_photo(self.photo_path)
@@ -225,12 +259,17 @@ class PatientsPage(customtkinter.CTkFrame):
             try:
                 with open(file_path, mode='w', newline='', encoding='utf-8') as file:
                     writer = csv.writer(file)
-                    writer.writerow(["Name", "Age", "Contact", "Address"])
+                    writer.writerow(["Name", "Age", "Gender", "DOB", "Contact", "Email", "Blood Group", "Emergency Contact", "Address"])
                     for patient in self.patients:
                         writer.writerow([
                             patient.get("name", ""),
                             patient.get("age", ""),
+                            patient.get("gender", ""),
+                            patient.get("dob", ""),
                             patient.get("contact", ""),
+                            patient.get("email", ""),
+                            patient.get("blood_group", ""),
+                            patient.get("emergency_contact", ""),
                             patient.get("address", "")
                         ])
                 messagebox.showinfo("Exported", f"Data exported to {file_path}")
